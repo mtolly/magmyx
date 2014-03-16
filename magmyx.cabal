@@ -1,0 +1,20 @@
+name:               magmyx
+version:            0.1
+synopsis:           Proper command-line-usable repackaging of Harmonix's Magma
+author:             Michael Tolly
+maintainer:         miketolly@gmail.com
+build-type:         Simple
+cabal-version:      >= 1.8
+data-dir:           data
+data-files:         MagmaCompiler.exe, MagmaCompilerC3.exe
+                    , gen/main_pc_0.ark, gen/main_pc.hdr
+                    , oggenc.exe
+
+executable magmyx
+  main-is:          Main.hs
+  other-modules:    Paths_magmyx
+  build-depends:    base >= 4.6 && < 5.0
+                    , filepath == 1.3.*
+                    , directory == 1.2.*
+                    , process == 1.2.*
+  ghc-options:      -Wall
