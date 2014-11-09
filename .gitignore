@@ -1,0 +1,5 @@
+data.tar.gz
+cabal.sandbox.config
+.cabal-sandbox/
+.DS_Store
+dist/

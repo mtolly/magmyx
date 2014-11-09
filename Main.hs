@@ -1,14 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 module Main where
 
-import System.Environment (getArgs)
-import System.Directory (getCurrentDirectory, setCurrentDirectory)
-import Paths_magmyx (getDataFileName)
-import Data.Char (toLower)
-import System.FilePath (takeExtension, (</>), takeDirectory)
-import System.Process (callProcess)
-import System.Info (os)
-import Data.List (partition)
+import           Codec.Archive.Tar      (extract)
+import           Codec.Compression.GZip (decompress)
+import qualified Data.ByteString.Lazy   as BL
+import           Data.Char              (toLower)
+import           Data.FileEmbed         (embedFile)
+import           Data.List              (partition)
+import           System.Directory       (getCurrentDirectory)
+import qualified System.Directory       as Dir
+import           System.Environment     (getArgs)
+import           System.FilePath        (takeExtension, (</>))
+import           System.Info            (os)
+import           System.IO.Temp         (withSystemTempDirectory)
+import           System.Process         (callProcess)
+
+tarGz :: BL.ByteString
+tarGz = BL.fromStrict $(embedFile "data.tar.gz")
 
 main :: IO ()
 main = do
@@ -19,28 +28,18 @@ main = do
         if map toLower (takeExtension arg) `elem` [".rbproj", ".rba"]
           then wd </> arg
           else arg
-  exe <- getDataFileName $
-    if null c3 then "MagmaCompiler.exe" else "MagmaCompilerC3.exe"
-  setCurrentDirectory $ takeDirectory exe
-  if os == "mingw32"
-    then callProcess exe argv''
-    else callProcess "wine" (exe : argv'')
+  withSystemTempDirectory "magmyx" $ \tmp -> do
 
-{-
-fixProj :: FilePath -> FilePath -> IO FilePath
-fixProj f temp = fromDTA f >>= \dta -> case unserialize dta of
-  Left e -> error e
-  Right proj -> do
-    art <- case albumArtFile $ albumArt $ project proj of
-      ""   -> return ""
-      file -> let file' = temp </> "cover.bmp" in
-        copyFile (B8.unpack file) file' >> return (B8.pack file')
-    let proj' = proj
-          { project = (project proj)
-            { albumArt = (albumArt $ project proj)
-              { albumArtFile = art
-              }
-            }
-          }
-    undefined
--}
+    Dir.setCurrentDirectory tmp
+    let tar = tmp </> "data.tar"
+    BL.writeFile tar $ decompress tarGz
+    extract tmp tar
+    let extracted = tmp </> "data"
+
+    Dir.setCurrentDirectory extracted
+    let exe = if null c3 then "MagmaCompiler.exe" else "MagmaCompilerC3.exe"
+    if os == "mingw32"
+      then callProcess exe argv''
+      else callProcess "wine" $ exe : argv''
+
+  Dir.setCurrentDirectory wd
